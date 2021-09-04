@@ -2,7 +2,7 @@
 # m3u organizer
 # Run as server.
 # This is a playlist organizer. Create yaml and m3u playlist
-
+set_time_limit(5);
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: *");
 
@@ -27,8 +27,6 @@ function m3uc ($array) {
 if (isset($_REQUEST['songs'])) {
 	header('Content-Type: application/json');
 
-
-	
 	foreach($_REQUEST['songs'] as $k => $file) {
 		$data[] = $file;
 	}
@@ -93,6 +91,37 @@ if (file_exists($plsf)) {
 				header("Location: http://{$_SERVER['HTTP_HOST']}");
 			}
 	}
+    if (isset($_GET['shuffle'])) {
+        while (false !== ( $file = readdir($dh))) {
+            $ext  = pathinfo($file, PATHINFO_EXTENSION);
+            $name = pathinfo($file, PATHINFO_FILENAME);
+            if ($ext == 'mp3' || $ext == 'wav' || $ext == 'mp4' ||  $ext == 'flac' ||  $ext == 'ogg' ||  $ext == 'm4a') {
+
+                $data_n[] = $file;
+            }
+        }
+        foreach ($data_n as $value) {
+            if (false === array_search($value, $data)) {
+                //echo $value, '<br>';
+                array_unshift($data, $value);
+                $has_new = true;
+            }
+            unset($value);
+        }
+        foreach ($data as $key => $value) {
+            if (false === array_search($value, $data_n)) {
+                unset($data[$key]);
+            }
+            unset($key, $value);
+            $has_new = true;
+        }
+
+        shuffle($data);
+
+        $string = m3uc($data);
+        file_put_contents($plsf, $string);
+        header("Location: http://{$_SERVER['HTTP_HOST']}");
+    }
 	
 } else {
 	while (false !== ( $file = readdir($dh))) {
@@ -121,19 +150,48 @@ if (file_exists($plsf)) {
 	<style>
 	#sortable { list-style-type: none; margin: 0; padding: 0; width: 85%; }
 	#sortable li { margin: 0 3px 3px 3px; padding: 0.05em .8em .7em 0.5em; font-size: 1.4em; height: 25px;}
-	audio {vertical-align: middle; margin-right: 1em;}
+	audio {vertical-align: middle; margin-right: 1em;width: 41%;}
 	.highlight {background: antiquewhite;}
 	.ui-sortable-helper {background: antiquewhite;}
 	.mark {background: cornsilk;}
 	.mark2 {background: azure;}
-	#sortable li span {margin: 0 0 0 .3em; cursor: pointer; line-height: 25px; padding: 0 5px;}
-	span:hover {background: grey;}
+	#sortable li span {margin: 0 0 0 .3em; cursor: pointer; line-height: 25px; padding: 0 5px; overflow: hidden;}
+    #sortable li span:hover {background: grey;}
+	.song {}
+	.move {
+        width: 20px; 
+        display: inline-block;
+        cursor: pointer;
+        position: relative;
+        vertical-align: middle;
+	}
+    .move > div {
+        height: 3px;
+        border-bottom: 2px solid lightslategrey;
+    }
+	.name {
+	    display: inline-block; 
+	    width: 40%;
+        overflow: hidden;
+        white-space: nowrap;
+        font-size: 0.8em;
+        vertical-align: sub;
+    }
+    input[type=checkbox] {
+        float: right;
+        top: 11px;
+        position: relative;
+    }
+    .separator {
+        padding: 0 30px;
+    }
 	</style>
 	<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
 	<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 	<script>
 		$( function() {
 			$( "#sortable" ).sortable({
+				handle: ".move",
 				stat: function(e, ui) {
 				},
 				stop: function(e, ui) {
@@ -218,27 +276,30 @@ if (file_exists($plsf)) {
 <body>
 	<h1 style="margin-bottom: 0;">Playlist Organizer</h1>
 	<h4 style="margin: 0;"><?= getcwd() ?></h4>
-	<a href="http://<?= $_SERVER['HTTP_HOST'] ?>?update=1">UPDATE</a>
+	<a href="http://<?= $_SERVER['HTTP_HOST'] ?>?update=1">UPDATE</a> <span class="separator">|</span>
+	<button id="save" onclick="save();" style="">SAVE</button> <span class="separator">|</span>
+    <a href="http://<?= $_SERVER['HTTP_HOST'] ?>?shuffle=1">Shuffle</a> <span class="separator">|</span>
 	<br>
 	<br>
 	<ul id="sortable">
 		<?php 
 			foreach ($data as $k => $song) {
-				echo '<li class="ui-state-default" data="'.$song.'">';
+				echo '<li class="song ui-state-default" data="'.$song.'">';
 				echo str_pad($k, 3, "0", STR_PAD_LEFT);
 				echo '<span onclick="delet(\''.str_replace("'", "\'", $song).'\', this)">✕</span>';
 				echo '<span onclick="up(this)">▲</span><span onclick="down(this)">▼</span>';
 				echo '<span onclick="move(\''.str_replace("'", "\'", $song).'\', this)">➔</span>&nbsp;';
 				echo '<audio controls preload="none" src="'.$song.'"></audio>';
-				echo $song;
-				echo '<input style="float: right;top: 11px;position: relative;" type="checkbox" onclick="$(this).parent().toggleClass(\'mark\');">';
-				echo '<input style="float: right;top: 11px;position: relative;" type="checkbox" onclick="$(this).parent().toggleClass(\'mark2\');"></li>', PHP_EOL; 
+				echo '<div class="name">'.$song.'</div>';
+				echo '<input type="checkbox" onclick="$(this).parent().toggleClass(\'mark\');">';
+				echo '<input type="checkbox" onclick="$(this).parent().toggleClass(\'mark2\');">'; 
+				echo '<div class="move"><div>&nbsp;</div><div>&nbsp;</div><div>&nbsp;</div></div>';
+				echo '</li>', PHP_EOL;
 				//echo '';
 			}
 		?>
 	</ul>
 
-	<button id="save" onclick="save();" style="position: fixed; top: 15px; right: 15px; padding: 5px; ">SAVE</button>
 	
 </body>
 </html>
